@@ -1,0 +1,64 @@
+- type: tile
+  id: Empty
+  name: empty
+
+- type: tile
+  id: SandboxFloor
+  name: sandbox floor
+  sprite: /Textures/Tiles/Basic/White/white.png
+
+- type: entity
+  id: SandboxPawn
+  name: sandbox pawn
+  components:
+  - type: SandboxPawn
+  - type: Eye
+  - type: Input
+    context: human
+  - type: Sprite
+    sprite: Objects/Fun/Tabletop/checker_pieces.rsi
+    state: w_checker_piece
+    drawdepth: 2
+  - type: Physics
+    bodyType: KinematicController
+    fixedRotation: true
+  - type: Fixtures
+    fixtures:
+      body:
+        shape:
+          !type:PhysShapeCircle
+          radius: 0.3
+        density: 1
+        hard: true
+        layer: 2
+        mask: 1
+
+- type: entity
+  id: SandboxWall
+  name: sandbox wall
+  components:
+  - type: Sprite
+    texture: Tiles/Basic/White/white.png
+    color: '#455365'
+    drawdepth: 1
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      wall:
+        shape:
+          !type:PhysShapeAabb
+          bounds: '-0.5,-0.5,0.5,0.5'
+        hard: true
+        layer: 1
+        mask: 2
+
+- type: entity
+  id: SandboxSwitch
+  name: sandbox switch
+  components:
+  - type: SandboxSwitch
+  - type: Sprite
+    sprite: Objects/Fun/Tabletop/checker_pieces.rsi
+    state: b_checker_crown
+    drawdepth: 2

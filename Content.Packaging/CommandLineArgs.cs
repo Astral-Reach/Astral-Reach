@@ -4,8 +4,6 @@ namespace Content.Packaging;
 
 public sealed class CommandLineArgs
 {
-    // PJB forgib me
-
     /// <summary>
     /// Generate client or server.
     /// </summary>
@@ -123,6 +121,7 @@ public sealed class CommandLineArgs
             else
             {
                 Console.WriteLine("Unknown argument: {0}", arg);
+                return false;
             }
         }
 
@@ -131,6 +130,11 @@ public sealed class CommandLineArgs
             Console.WriteLine("Client / server packaging unspecified.");
             return false;
         }
+
+        if (configuration is not ("Debug" or "DebugOpt" or "Release") ||
+            platforms?.Any(p => p is not ("win-x64" or "linux-x64")) == true ||
+            (client.Value && (platforms != null || hybridAcz)))
+            return false;
 
         parsed = new CommandLineArgs(client.Value, skipBuild, wipeRelease, hybridAcz, logBuild, platforms, configuration);
         return true;

@@ -11,19 +11,10 @@
   <Import Project="../MSBuild/Content.props" />
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" PrivateAssets="All" />
-    <PackageReference Include="NetCord" />
-    <PackageReference Include="prometheus-net" />
-    <PackageReference Include="Microsoft.Extensions.ObjectPool" />
-    <PackageReference Include="Serilog" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Content.Packaging\Content.Packaging.csproj" />
-    <ProjectReference Include="..\Content.Server.Database\Content.Server.Database.csproj" />
-    <ProjectReference Include="..\Content.Shared.Database\Content.Shared.Database.csproj" />
     <ProjectReference Include="..\Content.Shared\Content.Shared.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="EntityEffects\" />
   </ItemGroup>
   <Import Project="..\RobustToolbox\MSBuild\Robust.Properties.targets" />
   <Import Project="..\RobustToolbox\MSBuild\Robust.EntitySystemSubscriptionsGenerator.targets" />

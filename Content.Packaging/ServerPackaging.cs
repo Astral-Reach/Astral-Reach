@@ -13,19 +13,11 @@ public static class ServerPackaging
     private static readonly List<PlatformReg> Platforms = new()
     {
         new PlatformReg("win-x64", "Windows", true),
-        new PlatformReg("win-arm64", "Windows", true),
         new PlatformReg("linux-x64", "Linux", true),
-        new PlatformReg("linux-arm64", "Linux", true),
-        new PlatformReg("osx-x64", "MacOS", true),
-        new PlatformReg("osx-arm64", "MacOS", true),
-        // Non-default platforms (i.e. for Watchdog Git)
-        new PlatformReg("freebsd-x64", "FreeBSD", false),
     };
 
     private static IReadOnlySet<string> ServerContentIgnoresResources { get; } = new HashSet<string>
     {
-        "ServerInfo",
-        "Changelog",
     };
 
     private static List<string> PlatformRids => Platforms
@@ -174,10 +166,9 @@ public static class ServerPackaging
 
         pass.Dependencies.Add(new AssetPassDependency(graph.Output.Name));
 
-        // Include a TOML config file - include the ss14 one from Resources if possible, using the RT one as a fallback.
+        // Every package uses the same loopback development defaults as the source checkout.
         var toml = Path.Combine(contentDir, "Resources", "ConfigPresets", "server_config.toml");
-        var robustToml = Path.Combine("RobustToolbox", "bin", "Server", platform.Rid, "publish", "server_config.toml");
-        pass.InjectFileFromDisk("server_config.toml", File.Exists(toml) ? toml : robustToml);
+        pass.InjectFileFromDisk("server_config.toml", toml);
 
         passes.Add(pass);
 
@@ -186,7 +177,7 @@ public static class ServerPackaging
         var inputPassCore = graph.InputCore;
         var inputPassResources = graph.InputResources;
 
-        // Additional assemblies that need to be copied such as EFCore.
+        // Copy the content dependency closure after subtracting the bundled engine assemblies.
         var sourcePath = Path.Combine(contentDir, "bin", "Content.Server");
 
         var deps = DepsHandler.Load(Path.Combine(sourcePath, "Content.Server.deps.json"));
@@ -223,7 +214,7 @@ public static class ServerPackaging
         inputPassResources.InjectFinished();
     }
 
-    // This returns both content assemblies (e.g. Content.Server.dll) and dependencies (e.g. Npgsql)
+    // This returns content assemblies and their dependencies.
     private static IEnumerable<string> GetContentAssemblyNamesToCopy(DepsHandler deps)
     {
         var depsContent = deps.RecursiveGetLibrariesFrom("Content.Server").SelectMany(GetLibraryNames);
