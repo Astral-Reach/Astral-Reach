@@ -84,23 +84,34 @@ public sealed class SandboxIntegrationTests : RobustIntegrationTest
         var bobby = players.Sessions.Single(p => p.Name == "Bobby");
         var pawn = alice.AttachedEntity!.Value;
         var other = bobby.AttachedEntity!.Value;
+        await server.WaitPost(() => transform.SetCoordinates(other, new EntityCoordinates(world.Grid, new Vector2(4.5f, 3.5f))));
+        await Tick(server, first, second);
         Assert.That(pawn, Is.Not.EqualTo(other));
         Assert.That(alice.Status, Is.EqualTo(SessionStatus.InGame));
         var original = transform.GetMapCoordinates(pawn).Position;
         var otherOriginal = transform.GetMapCoordinates(other).Position;
 
         await Input(first, EngineKeyFunctions.MoveRight, BoundKeyState.Down);
+        var predictingPawn = first.EntMan.GetEntity(server.EntMan.GetNetEntity(pawn));
+        Assert.That(first.EntMan.GetComponent<PhysicsComponent>(predictingPawn).Predict, Is.True);
+        // Let only the client advance: movement must be visible before any server acknowledgement.
+        await first.WaitRunTicks(6);
+        Assert.That(first.System<SharedTransformSystem>().GetMapCoordinates(predictingPawn).X, Is.GreaterThan(original.X + 0.1f));
+        Assert.That(transform.GetMapCoordinates(pawn).Position, Is.EqualTo(original));
         await Tick(server, first, second, 30);
         await Input(first, EngineKeyFunctions.MoveRight, BoundKeyState.Up);
         await Tick(server, first, second, 15);
         var stopped = transform.GetMapCoordinates(pawn).Position;
-        Assert.That(stopped.X, Is.GreaterThan(original.X + 1));
+        Assert.That(stopped.X, Is.GreaterThan(otherOriginal.X + 0.6f), "Pawns did not pass through each other.");
         Assert.That(transform.GetMapCoordinates(other).Position, Is.EqualTo(otherOriginal));
         await Tick(server, first, second, 15);
         Assert.That(Vector2.Distance(transform.GetMapCoordinates(pawn).Position, stopped), Is.LessThan(0.01f));
         var netPawn = server.EntMan.GetNetEntity(pawn);
         var clientPawn = first.EntMan.GetEntity(netPawn);
         Assert.That(Vector2.Distance(first.System<SharedTransformSystem>().GetMapCoordinates(clientPawn).Position, stopped), Is.LessThan(0.15f));
+        var observedPawn = second.EntMan.GetEntity(netPawn);
+        Assert.That(second.EntMan.EntityExists(observedPawn), Is.True);
+        Assert.That(Vector2.Distance(second.System<SharedTransformSystem>().GetMapCoordinates(observedPawn).Position, stopped), Is.LessThan(0.15f));
 
         // Opposing inputs cancel through the real input/network stack.
         await Input(first, EngineKeyFunctions.MoveLeft, BoundKeyState.Down);
@@ -139,11 +150,14 @@ public sealed class SandboxIntegrationTests : RobustIntegrationTest
         await server.WaitPost(() =>
         {
             // A session attached to someone else's pawn is not allowed to interact.
-            players.SetAttachedEntity(alice, other);
+            Assert.That(players.SetAttachedEntity(alice, other, out var kicked, force: true), Is.True);
+            Assert.That(kicked, Is.SameAs(bobby));
+            Assert.That(alice.AttachedEntity, Is.EqualTo(other));
+            Assert.That(server.EntMan.GetComponent<SandboxPawnComponent>(other).InteractHeld, Is.False);
             transform.SetCoordinates(other, new EntityCoordinates(world.Grid, new Vector2(6.5f, 6.5f)));
             world.HandleInteraction(alice, BoundKeyState.Down);
-            players.SetAttachedEntity(alice, pawn);
-            players.SetAttachedEntity(bobby, other);
+            Assert.That(players.SetAttachedEntity(alice, pawn), Is.True);
+            Assert.That(players.SetAttachedEntity(bobby, other), Is.True);
         });
         Assert.That(server.EntMan.GetComponent<SandboxSwitchComponent>(world.Switch).Enabled, Is.True);
         var netSwitch = server.EntMan.GetNetEntity(world.Switch);
@@ -164,6 +178,17 @@ public sealed class SandboxIntegrationTests : RobustIntegrationTest
         });
         Assert.That(server.EntMan.GetComponent<SandboxSwitchComponent>(world.Switch).Enabled, Is.True);
 
+        await server.WaitPost(() =>
+        {
+            var foreignMap = server.System<SharedMapSystem>().CreateMap();
+            transform.SetCoordinates(pawn, new EntityCoordinates(foreignMap, new Vector2(6.5f, 7.5f)));
+            world.HandleInteraction(alice, BoundKeyState.Down);
+            world.HandleInteraction(alice, BoundKeyState.Up);
+            Assert.That(server.EntMan.GetComponent<SandboxSwitchComponent>(world.Switch).Enabled, Is.True, "Interaction crossed maps.");
+            transform.SetCoordinates(pawn, new EntityCoordinates(world.Grid, new Vector2(3.5f, 3.5f)));
+            server.EntMan.DeleteEntity(foreignMap);
+        });
+
         // Within two units, but across the interior wall.
         await server.WaitPost(() =>
         {
@@ -177,9 +202,14 @@ public sealed class SandboxIntegrationTests : RobustIntegrationTest
         for (var i = 0; i < 3; i++)
         {
             var old = alice.AttachedEntity!.Value;
+            await first.WaitPost(() => first.ResolveDependency<IInputManager>().KeyDown(new KeyEventArgs(Keyboard.Key.D, false, false, false, false, false, 0)));
+            await Tick(server, first, second, 10);
+            Assert.That(first.ResolveDependency<IInputManager>().IsKeyDown(Keyboard.Key.D), Is.True);
+            Assert.That(server.EntMan.GetComponent<SandboxPawnComponent>(old).Buttons, Is.EqualTo(MoveButtons.Right));
             await DisconnectClient(server, first, "Test reconnect");
             await Tick(server, first, second);
             Assert.That(server.EntMan.EntityExists(old), Is.False);
+            Assert.That(first.ResolveDependency<IInputManager>().IsKeyDown(Keyboard.Key.D), Is.False);
             await server.WaitPost(() => world.HandleInteraction(alice, BoundKeyState.Down));
             await ConnectClient(server, first, "Alice");
             await Tick(server, first, second, 60);
@@ -187,6 +217,28 @@ public sealed class SandboxIntegrationTests : RobustIntegrationTest
             Assert.That(alice.AttachedEntity, Is.Not.Null.And.Not.EqualTo(old));
             Assert.That(server.EntMan.GetComponent<SandboxPawnComponent>(alice.AttachedEntity!.Value).Buttons, Is.EqualTo(MoveButtons.None));
             Assert.That(server.EntMan.GetComponent<SandboxSwitchComponent>(world.Switch).Enabled, Is.True);
+            var fresh = alice.AttachedEntity!.Value;
+            var start = transform.GetMapCoordinates(fresh).Position;
+            await Input(first, EngineKeyFunctions.MoveRight, BoundKeyState.Down);
+            await Tick(server, first, second, 15);
+            await Input(first, EngineKeyFunctions.MoveRight, BoundKeyState.Up);
+            await Tick(server, first, second, 15);
+            Assert.That(transform.GetMapCoordinates(fresh).X, Is.GreaterThan(start.X + 0.5f));
+            await server.WaitPost(() =>
+            {
+                transform.SetCoordinates(world.Switch, new EntityCoordinates(world.Grid, new Vector2(6.5f, 7.5f)));
+                transform.SetCoordinates(fresh, new EntityCoordinates(world.Grid, new Vector2(6.5f, 6.5f)));
+            });
+            await Tick(server, first, second);
+            foreach (var expected in new[] { false, true })
+            {
+                await Input(first, SandboxInput.Interact, BoundKeyState.Down);
+                await Tick(server, first, second);
+                Assert.That(server.EntMan.GetComponent<SandboxSwitchComponent>(world.Switch).Enabled, Is.EqualTo(expected));
+                Assert.That(second.EntMan.GetComponent<SandboxSwitchComponent>(second.EntMan.GetEntity(netSwitch)).Enabled, Is.EqualTo(expected));
+                await Input(first, SandboxInput.Interact, BoundKeyState.Up);
+                await Tick(server, first, second);
+            }
         }
 
         await server.WaitPost(() =>
@@ -195,6 +247,27 @@ public sealed class SandboxIntegrationTests : RobustIntegrationTest
             world.HandleInteraction(alice, BoundKeyState.Down);
         });
         await Tick(server, first, second);
+    }
+
+    [Test]
+    public async Task ServerRestartRecreatesInitialArena()
+    {
+        for (var restart = 0; restart < 2; restart++)
+        {
+            using var server = StartServer(ServerOptions());
+            await server.WaitIdleAsync();
+            await server.WaitAssertion(() =>
+            {
+                var world = server.System<SandboxWorldSystem>();
+                var tiles = server.System<SharedMapSystem>().GetAllTiles(world.Grid.Owner, world.Grid.Comp).ToArray();
+                Assert.That(tiles, Has.Length.EqualTo(256));
+                Assert.That(tiles.All(t => t.GridIndices.X is >= 0 and < 16 && t.GridIndices.Y is >= 0 and < 16), Is.True);
+                var toggle = server.EntMan.GetComponent<SandboxSwitchComponent>(world.Switch);
+                Assert.That(toggle.Enabled, Is.False);
+                Assert.That(server.System<SharedTransformSystem>().GetMapCoordinates(world.Switch).Position, Is.EqualTo(new Vector2(6.5f, 7.5f)));
+                toggle.Enabled = true;
+            });
+        }
     }
 
     [Test]

@@ -6,6 +6,7 @@ using Robust.Shared.ContentPack;
 using Robust.Shared;
 using Robust.Shared.Configuration;
 using Robust.Shared.Input;
+using Robust.Shared.Timing;
 
 namespace Content.Client.Entry;
 
@@ -34,6 +35,12 @@ public sealed class EntryPoint : GameClient
         context.AddFunction(EngineKeyFunctions.MoveRight);
         context.AddFunction(SandboxInput.Interact);
         _screen = new SandboxScreen(Dependencies);
+    }
+
+    public override void Update(ModUpdateLevel level, FrameEventArgs frameEventArgs)
+    {
+        _screen?.CompleteStartup();
+        base.Update(level, frameEventArgs);
     }
 
     public override void Shutdown()

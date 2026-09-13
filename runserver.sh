@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
-dotnet run --project Content.Server
-read -p "Press enter to continue"
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+exec dotnet run --project Content.Server -c DebugOpt -- "$@"

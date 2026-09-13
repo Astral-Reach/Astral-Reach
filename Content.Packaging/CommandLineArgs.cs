@@ -30,7 +30,7 @@ public sealed class CommandLineArgs
     public bool HybridAcz { get; set; }
 
     /// <summary>
-    /// Configuration used for when packaging the server. (Release, Debug, Tools)
+    /// Configuration used for packaging (Release, Debug, DebugOpt).
     /// </summary>
     public string Configuration { get; set; }
 
@@ -149,8 +149,8 @@ Options:
   --skip-build          Should we skip building the project and use what's already there.
   --no-wipe-release     Don't wipe the release folder before creating files.
   --hybrid-acz          Use HybridACZ for server builds.
-  --platform            Platform for server builds. Default will output several x64 targets.
-  --configuration       Configuration to use for building the server (Release, Debug, Tools). Default is Release.
+  --platform            Repeat for win-x64 and/or linux-x64. Defaults to both.
+  --configuration       Release, Debug, or DebugOpt. Default is Release.
   --log-build           Log builds with MSBuild binlog. Logs get saved to release/
 ");
     }

@@ -169,6 +169,9 @@ public static class ServerPackaging
         // Every package uses the same loopback development defaults as the source checkout.
         var toml = Path.Combine(contentDir, "Resources", "ConfigPresets", "server_config.toml");
         pass.InjectFileFromDisk("server_config.toml", toml);
+        pass.InjectFileFromDisk("LICENSE.TXT", Path.Combine(contentDir, "LICENSE.TXT"));
+        foreach (var notice in new[] { "LICENSE-MIT.TXT", "LICENSE-GPLv3.TXT", "LICENSE-ASSETS.TXT", "legal.md" })
+            pass.InjectFileFromDisk($"Licenses/RobustToolbox/{notice}", Path.Combine("RobustToolbox", notice));
 
         passes.Add(pass);
 

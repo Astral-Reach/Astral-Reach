@@ -1,0 +1,44 @@
+name: Greenfield builds, tests, and packaging
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify pinned engine, all configurations, tests, and native package downloads
+        shell: pwsh
+        run: ./Tools/verify.ps1
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenfield-evidence-${{ matrix.os }}
+          path: |
+            artifacts/verification/
+            release/*.binlog
+          retention-days: 14
+      - name: Upload local test packages
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenfield-packages-${{ matrix.os }}
+          path: release/*.zip
+          retention-days: 7

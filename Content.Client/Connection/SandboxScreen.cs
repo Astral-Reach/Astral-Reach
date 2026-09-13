@@ -26,6 +26,7 @@ public sealed class SandboxScreen : IDisposable
     private readonly bool _fromLauncher;
     private bool _cancelled;
     private bool _disposed;
+    private bool _startupSynchronized;
 
     public SandboxScreen(IDependencyCollection dependencies)
     {
@@ -95,6 +96,16 @@ public sealed class SandboxScreen : IDisposable
             _redial.Visible = _controller.LaunchState.Ss14Address != null;
             // The engine starts the initial launcher connection after content PostInit.
         }
+    }
+
+    internal void CompleteStartup()
+    {
+        if (_startupSynchronized)
+            return;
+        // Robust applies --username after content PostInit, before the first update/render.
+        _startupSynchronized = true;
+        if (_client.PlayerNameOverride is { } name)
+            _username.Text = name;
     }
 
     private void Connect()

@@ -57,12 +57,14 @@ public sealed class ConnectionFlowTests : RobustIntegrationTest
             {
                 IoCManager.Register<INetManager, NetManager>(true);
                 IoCManager.Register<IClientNetManager, NetManager>(true);
-            },
-            BeforeStart = () => IoCManager.Resolve<IBaseClient>().PlayerNameOverride = "CommandLineName"
+            }
         };
         options.CVarOverrides.Add("net.connection_timeout", "1");
         options.CVarOverrides.Add("net.handshake_attempts", "1");
         using var client = StartClient(options);
+        await client.WaitIdleAsync();
+        // Match the engine's ordering: --username is assigned after content constructs its screen.
+        await client.WaitPost(() => client.ResolveDependency<IBaseClient>().PlayerNameOverride = "CommandLineName");
         await client.WaitRunTicks(2);
         var controls = Descendants(client.ResolveDependency<IUserInterfaceManager>().StateRoot).ToArray();
         var username = controls.OfType<LineEdit>().Single(c => c.Name == "Username");

@@ -78,6 +78,7 @@ public static class ClientPackaging
         AssetGraph.CalculateGraph([pass, dropSvgPass, ..graph.AllPasses], logger);
 
         var inputPass = graph.Input;
+        inputPass.InjectFileFromDisk("LICENSE.TXT", Path.Combine(contentDir, "LICENSE.TXT"));
 
         await RobustSharedPackaging.WriteContentAssemblies(
             inputPass,

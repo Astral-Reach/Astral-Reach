@@ -6,6 +6,7 @@ namespace Content.Client.Connection;
 /// <summary>Direct-connect endpoint parsing, without interpreting URLs or silently truncating addresses.</summary>
 public static class ServerAddress
 {
+    private static readonly Regex NumericAddress = new(@"^[0-9.]+$");
     private static readonly Regex Hostname = new(@"^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.?$");
 
     public static bool TryParse(string input, ushort defaultPort, out ServerEndpoint? endpoint, out string error)
@@ -42,7 +43,7 @@ public static class ServerAddress
                 portText = split[1];
             if (!Hostname.IsMatch(host))
                 return false;
-            if (Regex.IsMatch(host, @"^[0-9.]+$") &&
+            if (NumericAddress.IsMatch(host) &&
                 (!IPAddress.TryParse(host, out var ipv4) || ipv4.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork ||
                  host.Split('.').Length != 4))
                 return false;

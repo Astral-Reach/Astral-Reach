@@ -1,39 +1,62 @@
-<div class="header" align="center">
-<img alt="Space Station 14" width="880" height="300" src="https://raw.githubusercontent.com/space-wizards/asset-dump/de329a7898bb716b9d5ba9a0cd07f38e61f1ed05/github-logo.svg">
-</div>
+# Astral Reach
 
 Astral Reach is a collection of game modes inspired by Space Station 13 and built on [Robust Toolbox](https://github.com/space-wizards/RobustToolbox), our homegrown engine written in C#.
 
 Robust Toolbox separates the engine from server-specific game content through content packs loaded by the client and server. A content pack contains the code and assets necessary to play on a particular server.
 
-This repository contains both Robust Toolbox and the Astral Reach content pack for development.
+This repository contains both Robust Toolbox and the Astral Reach content pack for development. The greenfield branch currently provides a small multiplayer sandbox: a bounded arena, one pawn per player, and a shared toggle object. Game modes are future work.
 
-## Links
+## Setup and direct connect
 
-<div class="header" align="center">
+Install the .NET 10 SDK and Git. Clone this fork with `--recurse-submodules`, or initialize an existing clone:
 
-[Website](#) | [Discord](#) | [Forum](#) | [Mastodon](#) | [Patreon](#) | [Steam](https://store.steampowered.com/app/1255460/Space_Station_14/) | [Standalone Download](https://spacestation14.com/about/nightlies/)
+```sh
+git submodule update --init --recursive
+git -C RobustToolbox rev-parse HEAD
+dotnet restore SpaceStation14.slnx
+dotnet build SpaceStation14.slnx -c DebugOpt --no-restore
+```
 
-</div>
+The engine must remain at `edf061e7450a4074f173e3000bf1552b6f54082f` (v289.0.0). Do not run `submodule update --remote`.
 
-## Documentation/Wiki
+From the repository root, run these in separate terminals:
 
-Our [docs site](https://docs.spacestation14.com/) has documentation on content, engine, game design, and more.
+```sh
+dotnet run --project Content.Server -c DebugOpt --no-build
+dotnet run --project Content.Client -c DebugOpt --no-build
+```
 
-Additionally, see these resources for license and attribution information:
+The `runserver` and `runclient` scripts offer the same defaults. Rider's `Content Server+Client` configuration and VS Code's `Server/Client` compound are retained. On Linux, a graphical session and the engine's SDL/OpenGL/audio native dependencies are needed for the client; see the [engine setup guide](https://docs.spacestation14.com/en/general-development/setup.html).
 
-* [Robust Generic Attribution](https://docs.spacestation14.com/en/specifications/robust-generic-attribution.html)
-* [Robust Station Image](https://docs.spacestation14.com/en/specifications/robust-station-image.html)
+Enter a username (3–32 letters, numbers, or underscores) and `localhost`. Hostnames, IPv4, and bracketed IPv6 accept an optional port, for example `127.0.0.1:1212` or `[::1]:1212`. The interface provides connection progress, Cancel, failure reasons, Retry, Disconnect, Reconnect, and Quit. `--username` and `--connect` engine arguments are supported.
 
-We also have lots of resources for new contributors to the project.
+WASD moves at four world units per second, with normalized diagonals and wall collision. Pawns pass through each other. E toggles the nearest unobstructed object within two world units; orange means off and green means on. The camera follows your pawn. Disconnect removes your pawn; reconnect creates a fresh one. The world persists until server shutdown and resets on restart.
 
-## Contributing
+The development preset explicitly binds game UDP and HTTP status to loopback on port 1212, disables UPnP and hub advertisement, and retains standard Robust authentication with its localhost development allowance. The server entry point loads this preset before opening sockets. Pass `--config-file <path>` explicitly to select another configuration. Public deployment is outside this branch's scope.
 
-We are happy to accept contributions from anybody. Get in Discord if you want to help. We've got a [list of issues](https://github.com/space-wizards/space-station-14-content/issues) that need to be done and anybody can pick them up. Don't be afraid to ask for help either!
+## Launcher and packaging
 
-Just make sure your changes and pull requests are in accordance with the [contribution guidelines](https://docs.spacestation14.com/en/general-development/codebase-info/pull-request-guidelines.html).
+Use the standard SS14 launcher Direct Connect with `ss14://localhost:1212`. Launcher-provided endpoints and authentication stay under Robust's control. Authenticated names are read-only in the content menu; launcher reconnect/redial is supported. This fork does not modify the launcher.
 
-We welcome translations of the game. If you would like to translate the game into another language, please notify our [localization team](#) for how best to implement your work.
+A development server serves the current built client and retained resources through [Magic ACZ](https://docs.spacestation14.com/en/robust-toolbox/acz.html). Build the client before starting the server. Restart the server after changing client content so its download manifest is rebuilt.
+
+Create Release server archives with bundled client content from the repository root:
+
+```sh
+dotnet run --project Content.Packaging -c DebugOpt -- server --hybrid-acz --platform win-x64 --platform linux-x64
+```
+
+The packager runs in DebugOpt while building Release content. Keep those configurations separate to avoid rebuilding the running packager. Filenames remain compatible: `release/SS14.Client.zip`, `release/SS14.Server_win-x64.zip`, and `release/SS14.Server_linux-x64.zip`. Both server archives contain `Content.Client.zip` for Hybrid ACZ. Engine metadata is `289.0.0`, fork identifier `astral-reach`; Robust supplies the content manifest hash/version.
+
+Extract a server archive to a fresh directory outside the checkout and run `dotnet Robust.Server.dll` from that directory with .NET 10 installed. The packaged `server_config.toml` has the same loopback defaults. Stop any development server using port 1212 first. On Linux, `dotnet Robust.Server.dll` also avoids depending on ZIP extraction preserving executable bits.
+
+`client` packages the client alone. `--no-wipe-release` preserves other archives; `--log-build` writes diagnostic binlogs. `--skip-build` is only for already matching content and platform publish outputs, never a fresh checkout. By default, packaging replaces generated client/server outputs and `release/`; it refuses an unrelated working directory or redirected output directory.
+
+## Verification and contributions
+
+See [verification commands and manual gates](docs/verification.md), the [implementation record](GREENFIELD.md), and [contribution guidelines](CONTRIBUTING.md). Build all three configurations, run both test projects, inspect fresh packages, and review the complete diff before submitting. Windows/Linux CI performs builds, tests, and native-platform packaging; a local run does not establish a remote CI pass.
+
+Contributions and translations are welcome. Discuss substantial scope changes with the Astral Reach maintainers before implementation. Review the contribution guidelines and retain the policies below.
 
 ## AI-generated contributions
 
@@ -59,32 +82,8 @@ This includes sprites, textures, illustrations, icons, concept art, promotional 
 
 Minor assistive tools that do not generate the underlying artwork may be considered separately. Contributors remain responsible for establishing the authorship, provenance, licensing, and attribution of every submitted asset.
 
-## Building
+## License and attribution
 
-1. Clone this repo:
+Content code remains under the [MIT license](LICENSE.TXT), including the upstream copyright notice. Robust Toolbox and its dependencies retain their own licenses in the pinned submodule and distributed engine files.
 
-```shell
-git clone https://github.com/space-wizards/space-station-14.git
-```
-
-2. Go to the project folder and run `RUN_THIS.py` to initialize the submodules and load the engine:
-
-```shell
-cd space-station-14
-python RUN_THIS.py
-```
-
-3. Compile the solution:
-
-Build the server using `dotnet build`.
-
-[More detailed instructions on building the project.](https://docs.spacestation14.com/en/general-development/setup.html)
-
-## License
-
-All code for the content repository is licensed under the [MIT license](https://github.com/space-wizards/space-station-14/blob/master/LICENSE.TXT).
-
-Most assets are licensed under [CC-BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) unless stated otherwise. Assets have their license and copyright specified in the metadata file. For example, see the [metadata for a crowbar](https://github.com/space-wizards/space-station-14/blob/master/Resources/Textures/Objects/Tools/crowbar.rsi/meta.json).
-
-> [!NOTE]
-> Some assets are licensed under the non-commercial [CC-BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) or similar non-commercial licenses and will need to be removed if you wish to use this project commercially.
+The retained checker-piece sprites are CC-BY-SA-3.0, attributed to Zumorica, Fishfish458, and Capnsockless in their [RSI metadata](Resources/Textures/Objects/Fun/Tabletop/checker_pieces.rsi/meta.json). The white floor texture retains its [CC0 attribution](Resources/Textures/Tiles/Basic/White/attributions.yml). No other upstream content artwork is included. Preserve these notices when redistributing or selectively importing assets.
