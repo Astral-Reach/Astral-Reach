@@ -1,3 +1,4 @@
 @echo off
-dotnet run --project Content.Client
-pause
+cd /d "%~dp0"
+dotnet run --project Content.Client -c DebugOpt -- %*
+exit /b %errorlevel%

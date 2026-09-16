@@ -1,9 +1,5 @@
 # Reporting a security vulnerability
-You can report a security vulnerability through Discord or through email.
 
-If you want to send an email, you can contact us at <support@spacestation14.com>.
-If you want to contact us through Discord, you can join [our server](https://discord.gg/MwDDf6t)
-and then **privately** message anyone with the `@Wizard` or `@SS14 Maintainer` role.
+Privately contact an Astral Reach maintainer through an established project channel before public disclosure. This fork has not designated a public security email address. Do not send fork-specific reports to upstream's support address.
 
-In either case, **do not publicly disclose the vulnerability until we explicitly give
-you permission to do so**.
+For an issue in unchanged Robust Toolbox, use the pinned engine repository's security reporting policy. Include the affected commit, reproduction steps, and impact without publicly exposing credentials or private server data.
